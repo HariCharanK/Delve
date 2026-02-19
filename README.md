@@ -1,4 +1,4 @@
-# notesearch
+# Delve
 
 Local hybrid search for your notes — powered by SQLite.
 
@@ -49,3 +49,19 @@ OpenClaw-style: ~400 tokens per chunk, 80-token overlap, paragraph-boundary-awar
 | File monitoring | watchdog + debounce |
 | Frontend | VS Code / Cursor extension (QuickPick) |
 | Backend server | Flask |
+
+## Usage
+
+```bash
+# 1. Start the backend
+cd backend
+pip install -e .
+delve watch ~/notes    # indexes + watches + serves on :9120
+
+# 2. Install the extension in Cursor
+cd extension
+npm install && node esbuild.js && vsce package --no-dependencies
+# Install delve-0.1.0.vsix via Extensions → Install from VSIX
+
+# 3. Search! (Cmd+Shift+N)
+```

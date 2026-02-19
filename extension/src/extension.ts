@@ -31,7 +31,7 @@ interface SearchQuickPickItem extends vscode.QuickPickItem {
 
 function getServerUrl(): string {
   return vscode.workspace
-    .getConfiguration("notesearch")
+    .getConfiguration("delve")
     .get<string>("serverUrl", "http://127.0.0.1:9120");
 }
 
@@ -165,7 +165,7 @@ function debounce<T extends (...args: unknown[]) => void>(
 async function searchCommand(): Promise<void> {
   const serverUrl = getServerUrl();
   const notesDir: string = vscode.workspace
-    .getConfiguration("notesearch")
+    .getConfiguration("delve")
     .get<string>("notesDir", "~/notes")
     .replace(/^~/, process.env.HOME ?? "~");
 
@@ -211,8 +211,8 @@ async function searchCommand(): Promise<void> {
       ) {
         qp.items = [
           {
-            label: "$(warning) NoteSearch server is not running",
-            description: "Start notesearch server first",
+            label: "$(warning) Delve server is not running",
+            description: "Start delve server first",
             detail: serverUrl,
             filePath: "",
             lineStart: 0,
@@ -276,22 +276,22 @@ async function reindexCommand(): Promise<void> {
     await vscode.window.withProgress(
       {
         location: vscode.ProgressLocation.Notification,
-        title: "NoteSearch: Reindexing notes…",
+        title: "Delve: Reindexing notes…",
         cancellable: false,
       },
       async () => {
         await post(`${serverUrl}/reindex`, {});
       },
     );
-    vscode.window.showInformationMessage("NoteSearch: Reindex complete.");
+    vscode.window.showInformationMessage("Delve: Reindex complete.");
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
     if (msg.includes("ECONNREFUSED")) {
       vscode.window.showErrorMessage(
-        "NoteSearch: Server is not running. Start notesearch server first.",
+        "Delve: Server is not running. Start delve server first.",
       );
     } else {
-      vscode.window.showErrorMessage(`NoteSearch: Reindex failed — ${msg}`);
+      vscode.window.showErrorMessage(`Delve: Reindex failed — ${msg}`);
     }
   }
 }
@@ -302,8 +302,8 @@ async function reindexCommand(): Promise<void> {
 
 export function activate(context: vscode.ExtensionContext): void {
   context.subscriptions.push(
-    vscode.commands.registerCommand("notesearch.search", searchCommand),
-    vscode.commands.registerCommand("notesearch.reindex", reindexCommand),
+    vscode.commands.registerCommand("delve.search", searchCommand),
+    vscode.commands.registerCommand("delve.reindex", reindexCommand),
   );
 
   // Status bar item.
@@ -311,8 +311,8 @@ export function activate(context: vscode.ExtensionContext): void {
     vscode.StatusBarAlignment.Right,
     100,
   );
-  statusBar.text = "$(search) NoteSearch";
-  statusBar.command = "notesearch.search";
+  statusBar.text = "$(search) Delve";
+  statusBar.command = "delve.search";
   statusBar.tooltip = "Search your notes";
   statusBar.show();
   context.subscriptions.push(statusBar);

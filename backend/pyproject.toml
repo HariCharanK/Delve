@@ -1,5 +1,5 @@
 [project]
-name = "notesearch"
+name = "delve"
 version = "0.1.0"
 description = "Local hybrid search for notes — SQLite + FTS5 trigram + sqlite-vec"
 requires-python = ">=3.11"
@@ -11,4 +11,4 @@ dependencies = [
 ]
 
 [project.scripts]
-notesearch = "notesearch.cli:main"
+delve = "delve.cli:main"

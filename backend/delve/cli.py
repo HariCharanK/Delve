@@ -1,4 +1,4 @@
-"""CLI entrypoint for notesearch."""
+"""CLI entrypoint for delve."""
 
 import argparse
 import logging
@@ -11,9 +11,9 @@ from .monitor import FileMonitor
 from .server import run as run_server
 from .store import SearchStore
 
-log = logging.getLogger("notesearch")
+log = logging.getLogger("delve")
 
-DEFAULT_DB = "notesearch.db"
+DEFAULT_DB = "delve.db"
 
 
 def cmd_watch(args):
@@ -102,13 +102,13 @@ def cmd_search(args):
 
 def main():
     parser = argparse.ArgumentParser(
-        prog="notesearch",
+        prog="delve",
         description="Local hybrid search for notes files",
     )
     parser.add_argument(
         "--db",
         default=DEFAULT_DB,
-        help="Path to SQLite database (default: notesearch.db)",
+        help="Path to SQLite database (default: delve.db)",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 

@@ -1,9 +1,9 @@
 {
-  "name": "notesearch",
-  "displayName": "NoteSearch",
+  "name": "delve",
+  "displayName": "Delve",
   "description": "Local hybrid search for your notes",
   "version": "0.1.0",
-  "publisher": "notesearch",
+  "publisher": "delve",
   "license": "MIT",
   "engines": {
     "vscode": "^1.85.0"
@@ -12,36 +12,36 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:notesearch.search"
+    "onCommand:delve.search"
   ],
   "main": "./out/extension.js",
   "contributes": {
     "commands": [
       {
-        "command": "notesearch.search",
-        "title": "NoteSearch: Search Notes"
+        "command": "delve.search",
+        "title": "Delve: Search Notes"
       },
       {
-        "command": "notesearch.reindex",
-        "title": "NoteSearch: Reindex Notes"
+        "command": "delve.reindex",
+        "title": "Delve: Reindex Notes"
       }
     ],
     "keybindings": [
       {
-        "command": "notesearch.search",
+        "command": "delve.search",
         "key": "ctrl+shift+n",
         "mac": "cmd+shift+n"
       }
     ],
     "configuration": {
-      "title": "NoteSearch",
+      "title": "Delve",
       "properties": {
-        "notesearch.serverUrl": {
+        "delve.serverUrl": {
           "type": "string",
           "default": "http://127.0.0.1:9120",
-          "description": "URL of the NoteSearch backend server"
+          "description": "URL of the Delve backend server"
         },
-        "notesearch.notesDir": {
+        "delve.notesDir": {
           "type": "string",
           "default": "~/notes",
           "description": "Directory containing your notes files"
