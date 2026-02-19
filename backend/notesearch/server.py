@@ -42,16 +42,18 @@ def create_app(store: SearchStore, notes_dir: str) -> Flask:
         response = []
         for r in results:
             # Estimate line number from chunk content position in original file
-            line_number = _estimate_line_number(r.file_path, r.content)
+            line_start = _estimate_line_number(r.file_path, r.content)
+            # Extension needs absolute paths for vscode.Uri.file()
+            abs_path = os.path.join(_notes_dir, r.file_path)
             response.append({
-                "file_path": r.file_path,
+                "file_path": abs_path,
                 "chunk_index": r.chunk_index,
                 "content": r.content,
                 "score": r.score,
-                "line_number": line_number,
+                "line_start": line_start,
             })
 
-        return jsonify(response)
+        return jsonify({"query": query, "results": response})
 
     @app.route("/status", methods=["GET"])
     def status():
