@@ -1,0 +1,25 @@
+* Web Development Notes
+
+** Frontend Frameworks
+
+React, Vue, and Angular are the most popular frontend frameworks.
+Each has its own approach to component-based architecture.
+
+Interactive components make modern web applications feel responsive
+and engaging to users.
+
+** Backend Architecture
+
+RESTful APIs remain the standard for web services. GraphQL offers
+an interesting alternative with more flexible querying capabilities.
+
+Microservices architecture splits applications into small, independent
+services that communicate over the network.
+
+** Database Design
+
+Relational databases like PostgreSQL provide ACID guarantees.
+NoSQL databases offer flexibility for unstructured data.
+
+Internal data models should be carefully designed to avoid
+performance bottlenecks as the application scales.

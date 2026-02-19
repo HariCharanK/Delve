@@ -1,0 +1,32 @@
+Machine Learning Overview
+
+Supervised Learning
+-------------------
+Supervised learning algorithms learn from labeled training data. Common
+algorithms include linear regression, decision trees, and neural networks.
+
+The training process involves minimizing a loss function through optimization.
+Gradient descent is the most popular optimization method.
+
+Unsupervised Learning
+---------------------
+Unsupervised learning finds patterns in unlabeled data. Clustering algorithms
+like K-means and DBSCAN group similar data points together.
+
+Dimensionality reduction techniques like PCA and t-SNE help visualize
+high-dimensional data in lower dimensions.
+
+Reinforcement Learning
+----------------------
+Reinforcement learning agents learn by interacting with an environment.
+They receive rewards for good actions and penalties for bad ones.
+
+Deep reinforcement learning combines neural networks with RL, enabling
+agents to handle complex, high-dimensional state spaces. This area has
+seen interesting breakthroughs in game playing and robotics.
+
+Memory and Computation
+----------------------
+Training large models requires significant memory and computational resources.
+Techniques like gradient checkpointing and mixed-precision training help
+reduce memory usage while maintaining model quality.
