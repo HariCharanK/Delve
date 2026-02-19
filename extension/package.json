@@ -1,0 +1,64 @@
+{
+  "name": "notesearch",
+  "displayName": "NoteSearch",
+  "description": "Local hybrid search for your notes",
+  "version": "0.1.0",
+  "publisher": "notesearch",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:notesearch.search"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "notesearch.search",
+        "title": "NoteSearch: Search Notes"
+      },
+      {
+        "command": "notesearch.reindex",
+        "title": "NoteSearch: Reindex Notes"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "notesearch.search",
+        "key": "ctrl+shift+n",
+        "mac": "cmd+shift+n"
+      }
+    ],
+    "configuration": {
+      "title": "NoteSearch",
+      "properties": {
+        "notesearch.serverUrl": {
+          "type": "string",
+          "default": "http://127.0.0.1:9120",
+          "description": "URL of the NoteSearch backend server"
+        },
+        "notesearch.notesDir": {
+          "type": "string",
+          "default": "~/notes",
+          "description": "Directory containing your notes files"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "typecheck": "tsc --noEmit",
+    "package": "vsce package --no-dependencies"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.0"
+  }
+}
