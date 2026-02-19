@@ -1,0 +1,14 @@
+[project]
+name = "notesearch"
+version = "0.1.0"
+description = "Local hybrid search for notes — SQLite + FTS5 trigram + sqlite-vec"
+requires-python = ">=3.11"
+dependencies = [
+    "sqlite-vec>=0.1.6",
+    "watchdog>=4.0",
+    "flask>=3.0",
+    "google-genai>=1.0",
+]
+
+[project.scripts]
+notesearch = "notesearch.cli:main"
