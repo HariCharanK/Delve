@@ -2,7 +2,7 @@
   "name": "delve",
   "displayName": "Delve",
   "description": "Local hybrid search for your notes",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "publisher": "delve",
   "license": "MIT",
   "engines": {
@@ -12,7 +12,9 @@
     "Other"
   ],
   "activationEvents": [
-    "onStartupFinished"
+    "onStartupFinished",
+    "onView:delve.searchInput",
+    "onView:delve.results"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -44,7 +46,7 @@
         {
           "id": "delve",
           "title": "Delve",
-          "icon": "$(book)"
+          "icon": "media/delve.svg"
         }
       ]
     },

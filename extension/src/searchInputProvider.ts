@@ -48,6 +48,7 @@ export class SearchInputProvider implements vscode.WebviewViewProvider {
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline';">
   <style>
     * {
       margin: 0;
@@ -59,7 +60,7 @@ export class SearchInputProvider implements vscode.WebviewViewProvider {
       font-family: var(--vscode-font-family);
       font-size: var(--vscode-font-size);
       color: var(--vscode-foreground);
-      background: transparent;
+      background-color: var(--vscode-sideBar-background, var(--vscode-editor-background));
     }
     .search-container {
       position: relative;
