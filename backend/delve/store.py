@@ -2,6 +2,7 @@
 
 import json
 import sqlite3
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -23,15 +24,27 @@ class SearchStore:
 
     def __init__(self, db_path: str | Path):
         self.db_path = str(db_path)
-        self.db = sqlite3.connect(self.db_path)
+        self._lock = threading.Lock()
+        self.db = sqlite3.connect(self.db_path, check_same_thread=False)
         self.db.row_factory = sqlite3.Row
         self._load_extensions()
+        self._setup_pragmas()
         self._create_schema()
 
     def _load_extensions(self):
         self.db.enable_load_extension(True)
         sqlite_vec.load(self.db)
         self.db.enable_load_extension(False)
+
+    def _setup_pragmas(self):
+        self.db.executescript("""
+            PRAGMA journal_mode = WAL;
+            PRAGMA synchronous = NORMAL;
+            PRAGMA cache_size = -64000;
+            PRAGMA mmap_size = 268435456;
+            PRAGMA temp_store = MEMORY;
+            PRAGMA busy_timeout = 5000;
+        """)
 
     def _create_schema(self):
         self.db.executescript("""
@@ -95,26 +108,33 @@ class SearchStore:
         mtime: float,
     ):
         """Insert or replace all chunks for a file."""
-        self.delete_file(file_path)
+        with self._lock:
+            self.delete_file(file_path, _already_locked=True)
 
-        for i, (chunk, emb) in enumerate(zip(chunks, embeddings)):
-            cursor = self.db.execute(
-                "INSERT INTO chunks (file_path, chunk_index, content, file_mtime) "
-                "VALUES (?, ?, ?, ?)",
-                (file_path, i, chunk, mtime),
-            )
-            rowid = cursor.lastrowid
-            # sqlite-vec accepts JSON arrays for embeddings
-            self.db.execute(
-                "INSERT INTO chunks_vec (rowid, embedding) VALUES (?, ?)",
-                (rowid, json.dumps(emb)),
-            )
+            for i, (chunk, emb) in enumerate(zip(chunks, embeddings)):
+                cursor = self.db.execute(
+                    "INSERT INTO chunks (file_path, chunk_index, content, file_mtime) "
+                    "VALUES (?, ?, ?, ?)",
+                    (file_path, i, chunk, mtime),
+                )
+                rowid = cursor.lastrowid
+                self.db.execute(
+                    "INSERT INTO chunks_vec (rowid, embedding) VALUES (?, ?)",
+                    (rowid, json.dumps(emb)),
+                )
 
-        self.db.commit()
+            self.db.commit()
 
-    def delete_file(self, file_path: str):
+    def delete_file(self, file_path: str, *, _already_locked: bool = False):
         """Delete all chunks for a file (triggers keep FTS5 in sync)."""
-        # First delete from vec0 (no trigger support)
+        if _already_locked:
+            self._delete_file_impl(file_path)
+        else:
+            with self._lock:
+                self._delete_file_impl(file_path)
+
+    def _delete_file_impl(self, file_path: str):
+        """Internal delete implementation (caller must hold self._lock)."""
         rowids = self.db.execute(
             "SELECT rowid FROM chunks WHERE file_path = ?", (file_path,)
         ).fetchall()
@@ -123,7 +143,6 @@ class SearchStore:
                 "DELETE FROM chunks_vec WHERE rowid = ?", (row["rowid"],)
             )
 
-        # Delete from chunks (triggers update FTS5)
         self.db.execute("DELETE FROM chunks WHERE file_path = ?", (file_path,))
         self.db.commit()
 
