@@ -50,18 +50,32 @@ OpenClaw-style: ~400 tokens per chunk, 80-token overlap, paragraph-boundary-awar
 | Frontend | VS Code / Cursor extension (QuickPick) |
 | Backend server | Flask |
 
-## Usage
+## Setup
+
+### 1. Gemini API key
+
+Delve uses Gemini embeddings for semantic search. Get a free API key from [Google AI Studio](https://aistudio.google.com/apikey) and export it:
 
 ```bash
-# 1. Start the backend
+export GOOGLE_API_KEY="your-key-here"
+```
+
+(Also accepts `GEMINI_API_KEY`. Add to your shell profile to persist.)
+
+### 2. Start the backend
+
+```bash
 cd backend
 pip install -e .
-delve watch ~/notes    # indexes + watches + serves on :9120
+delve watch ~/notes    # full index on first run + file watcher + HTTP server on :9120
+```
 
-# 2. Install the extension in Cursor
+### 3. Install the Cursor extension
+
+```bash
 cd extension
 npm install && node esbuild.js && vsce package --no-dependencies
-# Install delve-0.1.0.vsix via Extensions → Install from VSIX
-
-# 3. Search! (Cmd+Shift+N)
+# In Cursor: Cmd+Shift+P → "Install from VSIX" → pick delve-0.1.0.vsix
 ```
+
+### 4. Search! (`Cmd+Shift+N`)

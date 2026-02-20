@@ -2,6 +2,7 @@
 
 import argparse
 import logging
+import os
 import signal
 import sys
 import time
@@ -16,8 +17,25 @@ log = logging.getLogger("delve")
 DEFAULT_DB = "delve.db"
 
 
+def _check_api_key():
+    """Check that a Gemini API key is set, exit with helpful message if not."""
+    if not os.environ.get("GOOGLE_API_KEY") and not os.environ.get("GEMINI_API_KEY"):
+        print(
+            "Error: No Gemini API key found.\n"
+            "\n"
+            "Delve needs a Gemini API key for embeddings. Get a free one from:\n"
+            "  https://aistudio.google.com/apikey\n"
+            "\n"
+            "Then export it:\n"
+            "  export GOOGLE_API_KEY='your-key-here'\n",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+
 def cmd_watch(args):
     """Start file monitor + initial index + HTTP server."""
+    _check_api_key()
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -53,6 +71,7 @@ def cmd_watch(args):
 
 def cmd_reindex(args):
     """Full re-index of a directory."""
+    _check_api_key()
     logging.basicConfig(
         level=logging.INFO,
         format="%(asctime)s %(levelname)s %(name)s: %(message)s",
@@ -70,6 +89,7 @@ def cmd_reindex(args):
 
 def cmd_search(args):
     """One-shot search from command line."""
+    _check_api_key()
     logging.basicConfig(level=logging.WARNING)
 
     store = SearchStore(args.db)
