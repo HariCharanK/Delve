@@ -2,7 +2,7 @@
   "name": "delve",
   "displayName": "Delve",
   "description": "Local hybrid search for your notes",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "delve",
   "license": "MIT",
   "engines": {
@@ -32,9 +32,15 @@
     ],
     "keybindings": [
       {
-        "command": "delve.search",
+        "command": "delve.focusSearch",
         "key": "ctrl+shift+n",
         "mac": "cmd+shift+n"
+      }
+    ],
+    "viewsWelcome": [
+      {
+        "view": "delve.results",
+        "contents": "Type a query in the search box above to find notes."
       }
     ],
     "viewsContainers": {

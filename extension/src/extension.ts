@@ -386,10 +386,13 @@ export function activate(context: vscode.ExtensionContext): void {
         openFileAtLine(filePath, lineStart),
     ),
 
-    // Focus the sidebar search input
-    vscode.commands.registerCommand("delve.focusSearch", () =>
-      searchInput.focus(),
-    ),
+    // Focus the sidebar search input (also reveals the sidebar)
+    vscode.commands.registerCommand("delve.focusSearch", async () => {
+      await vscode.commands.executeCommand(
+        "workbench.view.extension.delve",
+      );
+      searchInput.focus();
+    }),
   );
 
   // -- Status bar item ------------------------------------------------------
@@ -398,7 +401,7 @@ export function activate(context: vscode.ExtensionContext): void {
     100,
   );
   statusBar.text = "$(search) Delve";
-  statusBar.command = "delve.search";
+  statusBar.command = "delve.focusSearch";
   statusBar.tooltip = "Search your notes";
   statusBar.show();
   context.subscriptions.push(statusBar);
