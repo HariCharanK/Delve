@@ -2,18 +2,15 @@ import * as vscode from "vscode";
 import * as http from "http";
 import * as https from "https";
 import * as path from "path";
+import { SearchInputProvider } from "./searchInputProvider";
+import {
+  SearchResultsProvider,
+  type SearchChunk,
+} from "./searchResultsProvider";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
-
-interface SearchChunk {
-  file_path: string;
-  content: string;
-  chunk_index: number;
-  line_start: number;
-  score: number;
-}
 
 interface SearchResponse {
   query: string;
@@ -33,6 +30,13 @@ function getServerUrl(): string {
   return vscode.workspace
     .getConfiguration("delve")
     .get<string>("serverUrl", "http://127.0.0.1:9120");
+}
+
+function getNotesDir(): string {
+  return vscode.workspace
+    .getConfiguration("delve")
+    .get<string>("notesDir", "~/notes")
+    .replace(/^~/, process.env.HOME ?? "~");
 }
 
 /** Simple POST helper that works with Node's built-in http/https modules. */
@@ -73,10 +77,9 @@ function post(url: string, body: unknown): Promise<string> {
 }
 
 // ---------------------------------------------------------------------------
-// Result formatting
+// Result formatting (QuickPick)
 // ---------------------------------------------------------------------------
 
-/** Truncate a content snippet to roughly `max` characters on a word boundary. */
 function truncateSnippet(text: string, max = 120): string {
   const oneLine = text.replace(/\n+/g, " ").trim();
   if (oneLine.length <= max) {
@@ -85,18 +88,10 @@ function truncateSnippet(text: string, max = 120): string {
   return oneLine.slice(0, max).replace(/\s+\S*$/, "") + "…";
 }
 
-/**
- * Group flat search results by file and build QuickPick items.
- *
- * Layout mirrors VS Code's native search panel:
- *   ▸ Separator per file (with match count badge)
- *   ▸ One item per chunk showing a content snippet
- */
 function buildQuickPickItems(
   results: SearchChunk[],
   notesDir: string,
 ): SearchQuickPickItem[] {
-  // Group by file path, preserving first-seen order.
   const grouped = new Map<string, SearchChunk[]>();
   for (const r of results) {
     const existing = grouped.get(r.file_path);
@@ -115,7 +110,6 @@ function buildQuickPickItems(
       ? filePath.slice(notesDir.length).replace(/^\//, "")
       : filePath;
 
-    // Separator line for the file.
     items.push({
       label: `$(file) ${basename}`,
       description: relPath,
@@ -125,7 +119,6 @@ function buildQuickPickItems(
       lineStart: chunks[0].line_start,
     });
 
-    // One item per matching chunk.
     for (const chunk of chunks) {
       const snippet = truncateSnippet(chunk.content);
       items.push({
@@ -159,15 +152,34 @@ function debounce<T extends (...args: unknown[]) => void>(
 }
 
 // ---------------------------------------------------------------------------
-// Commands
+// Open-match helper (used by both QuickPick and TreeView)
+// ---------------------------------------------------------------------------
+
+async function openFileAtLine(
+  filePath: string,
+  lineStart: number,
+): Promise<void> {
+  try {
+    const uri = vscode.Uri.file(filePath);
+    const doc = await vscode.workspace.openTextDocument(uri);
+    const editor = await vscode.window.showTextDocument(doc);
+
+    const line = Math.max(0, lineStart - 1);
+    const range = new vscode.Range(line, 0, line, 0);
+    editor.selection = new vscode.Selection(range.start, range.start);
+    editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
+  } catch {
+    vscode.window.showErrorMessage(`Could not open file: ${filePath}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// QuickPick search command (preserved as alternative)
 // ---------------------------------------------------------------------------
 
 async function searchCommand(): Promise<void> {
   const serverUrl = getServerUrl();
-  const notesDir: string = vscode.workspace
-    .getConfiguration("delve")
-    .get<string>("notesDir", "~/notes")
-    .replace(/^~/, process.env.HOME ?? "~");
+  const notesDir = getNotesDir();
 
   const qp = vscode.window.createQuickPick<SearchQuickPickItem>();
   qp.placeholder = "Search your notes...";
@@ -175,7 +187,6 @@ async function searchCommand(): Promise<void> {
   qp.matchOnDetail = true;
   qp.busy = false;
 
-  // Track the latest request so we can discard stale responses.
   let requestSeq = 0;
 
   const doSearch = debounce(async (...args: unknown[]) => {
@@ -191,7 +202,6 @@ async function searchCommand(): Promise<void> {
 
     try {
       const raw = await post(`${serverUrl}/search`, { query, top_k: 20 });
-      // Discard if a newer query has been issued.
       if (seq !== requestSeq) {
         return;
       }
@@ -202,8 +212,7 @@ async function searchCommand(): Promise<void> {
       if (seq !== requestSeq) {
         return;
       }
-      const msg =
-        err instanceof Error ? err.message : String(err);
+      const msg = err instanceof Error ? err.message : String(err);
       if (
         msg.includes("ECONNREFUSED") ||
         msg.includes("ECONNRESET") ||
@@ -245,29 +254,17 @@ async function searchCommand(): Promise<void> {
     if (!selected || !selected.filePath) {
       return;
     }
-
     qp.hide();
-
-    try {
-      const uri = vscode.Uri.file(selected.filePath);
-      const doc = await vscode.workspace.openTextDocument(uri);
-      const editor = await vscode.window.showTextDocument(doc);
-
-      // Reveal the relevant line.
-      const line = Math.max(0, selected.lineStart - 1);
-      const range = new vscode.Range(line, 0, line, 0);
-      editor.selection = new vscode.Selection(range.start, range.start);
-      editor.revealRange(range, vscode.TextEditorRevealType.InCenter);
-    } catch {
-      vscode.window.showErrorMessage(
-        `Could not open file: ${selected.filePath}`,
-      );
-    }
+    await openFileAtLine(selected.filePath, selected.lineStart);
   });
 
   qp.onDidHide(() => qp.dispose());
   qp.show();
 }
+
+// ---------------------------------------------------------------------------
+// Reindex command
+// ---------------------------------------------------------------------------
 
 async function reindexCommand(): Promise<void> {
   const serverUrl = getServerUrl();
@@ -297,16 +294,105 @@ async function reindexCommand(): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Sidebar search (WebView input + TreeView results)
+// ---------------------------------------------------------------------------
+
+function setupSidebarSearch(
+  _context: vscode.ExtensionContext,
+  searchInput: SearchInputProvider,
+  searchResults: SearchResultsProvider,
+): void {
+  let requestSeq = 0;
+
+  searchInput.onDidSearch(async (query: string) => {
+    const serverUrl = getServerUrl();
+    const notesDir = getNotesDir();
+
+    if (!query || query.trim().length === 0) {
+      searchResults.clear();
+      return;
+    }
+
+    const seq = ++requestSeq;
+
+    try {
+      const raw = await post(`${serverUrl}/search`, { query, top_k: 20 });
+      if (seq !== requestSeq) {
+        return;
+      }
+
+      const data: SearchResponse = JSON.parse(raw);
+      searchResults.update(data.results ?? [], notesDir);
+    } catch (err: unknown) {
+      if (seq !== requestSeq) {
+        return;
+      }
+      const msg = err instanceof Error ? err.message : String(err);
+      if (
+        msg.includes("ECONNREFUSED") ||
+        msg.includes("ECONNRESET") ||
+        msg.includes("timed out")
+      ) {
+        searchResults.showMessage(
+          "⚠ Delve server is not running. Start the server first.",
+        );
+      } else {
+        searchResults.showMessage(`✕ Search failed: ${msg}`);
+      }
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Activation
 // ---------------------------------------------------------------------------
 
 export function activate(context: vscode.ExtensionContext): void {
+  // -- Sidebar providers ----------------------------------------------------
+  const searchInput = new SearchInputProvider();
+  const searchResults = new SearchResultsProvider();
+
+  // Register the WebView for the search input box
   context.subscriptions.push(
-    vscode.commands.registerCommand("delve.search", searchCommand),
-    vscode.commands.registerCommand("delve.reindex", reindexCommand),
+    vscode.window.registerWebviewViewProvider(
+      SearchInputProvider.viewId,
+      searchInput,
+    ),
   );
 
-  // Status bar item.
+  // Register the TreeView for search results
+  const resultsTreeView = vscode.window.createTreeView("delve.results", {
+    treeDataProvider: searchResults,
+    showCollapseAll: true,
+  });
+  searchResults.setTreeView(resultsTreeView);
+  context.subscriptions.push(resultsTreeView);
+
+  // Wire up the sidebar search
+  setupSidebarSearch(context, searchInput, searchResults);
+
+  // -- Commands -------------------------------------------------------------
+  context.subscriptions.push(
+    // QuickPick search (Cmd+Shift+N still works)
+    vscode.commands.registerCommand("delve.search", searchCommand),
+
+    // Reindex
+    vscode.commands.registerCommand("delve.reindex", reindexCommand),
+
+    // Open a match from TreeView click
+    vscode.commands.registerCommand(
+      "delve.openMatch",
+      (filePath: string, lineStart: number) =>
+        openFileAtLine(filePath, lineStart),
+    ),
+
+    // Focus the sidebar search input
+    vscode.commands.registerCommand("delve.focusSearch", () =>
+      searchInput.focus(),
+    ),
+  );
+
+  // -- Status bar item ------------------------------------------------------
   const statusBar = vscode.window.createStatusBarItem(
     vscode.StatusBarAlignment.Right,
     100,

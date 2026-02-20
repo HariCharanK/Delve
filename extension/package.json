@@ -2,7 +2,7 @@
   "name": "delve",
   "displayName": "Delve",
   "description": "Local hybrid search for your notes",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "publisher": "delve",
   "license": "MIT",
   "engines": {
@@ -12,7 +12,7 @@
     "Other"
   ],
   "activationEvents": [
-    "onCommand:delve.search"
+    "onStartupFinished"
   ],
   "main": "./out/extension.js",
   "contributes": {
@@ -24,6 +24,10 @@
       {
         "command": "delve.reindex",
         "title": "Delve: Reindex Notes"
+      },
+      {
+        "command": "delve.focusSearch",
+        "title": "Delve: Focus Search Input"
       }
     ],
     "keybindings": [
@@ -33,6 +37,28 @@
         "mac": "cmd+shift+n"
       }
     ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "delve",
+          "title": "Delve",
+          "icon": "$(search)"
+        }
+      ]
+    },
+    "views": {
+      "delve": [
+        {
+          "id": "delve.searchInput",
+          "name": "Search",
+          "type": "webview"
+        },
+        {
+          "id": "delve.results",
+          "name": "Results"
+        }
+      ]
+    },
     "configuration": {
       "title": "Delve",
       "properties": {
