@@ -18,10 +18,6 @@
   "contributes": {
     "commands": [
       {
-        "command": "delve.search",
-        "title": "Delve: Search Notes"
-      },
-      {
         "command": "delve.reindex",
         "title": "Delve: Reindex Notes"
       },
