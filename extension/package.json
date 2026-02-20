@@ -42,7 +42,7 @@
         {
           "id": "delve",
           "title": "Delve",
-          "icon": "$(search)"
+          "icon": "$(book)"
         }
       ]
     },

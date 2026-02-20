@@ -174,7 +174,7 @@ class SearchStore:
             ORDER BY rank
             LIMIT ?
             """,
-            ('"' + query_text.replace('"', '""') + '"', top_k * 3),
+            ('"' + query_text.replace('"', '""') + '"', top_k * 5),
         ).fetchall()
 
         # --- Vector search ---
@@ -188,7 +188,7 @@ class SearchStore:
                 AND k = ?
             ORDER BY v.distance
             """,
-            (json.dumps(query_embedding), top_k * 3),
+            (json.dumps(query_embedding), top_k * 5),
         ).fetchall()
 
         # --- RRF merge ---

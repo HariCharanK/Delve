@@ -41,8 +41,9 @@ def create_app(store: SearchStore, notes_dir: str) -> Flask:
 
         response = []
         for r in results:
-            # Estimate line number from chunk content position in original file
-            line_start = _estimate_line_number(r.file_path, r.content)
+            # With one-line-per-chunk, we can compute the line number
+            # directly: chunk_index maps to the Nth non-empty line.
+            line_start = _find_line_number(r.file_path, r.content)
             # Extension needs absolute paths for vscode.Uri.file()
             abs_path = os.path.join(_notes_dir, r.file_path)
             response.append({
@@ -80,20 +81,17 @@ def create_app(store: SearchStore, notes_dir: str) -> Flask:
     return app
 
 
-def _estimate_line_number(file_path: str, chunk_content: str) -> int:
-    """Estimate the line number where a chunk starts in the original file."""
+def _find_line_number(file_path: str, chunk_content: str) -> int:
+    """Find the 1-based line number where a chunk (single line) appears."""
     if not _notes_dir:
         return 1
     abs_path = os.path.join(_notes_dir, file_path)
     try:
         with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
-            full_text = f.read()
-        # Find the chunk's first 80 chars in the full text
-        snippet = chunk_content[:80]
-        pos = full_text.find(snippet)
-        if pos == -1:
-            return 1
-        return full_text[:pos].count("\n") + 1
+            for i, line in enumerate(f, 1):
+                if line.strip() == chunk_content.strip():
+                    return i
+        return 1
     except OSError:
         return 1
 

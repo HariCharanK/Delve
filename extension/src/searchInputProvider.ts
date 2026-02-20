@@ -55,7 +55,7 @@ export class SearchInputProvider implements vscode.WebviewViewProvider {
       box-sizing: border-box;
     }
     body {
-      padding: 8px 12px;
+      padding: 4px 8px 0;
       font-family: var(--vscode-font-family);
       font-size: var(--vscode-font-size);
       color: var(--vscode-foreground);
