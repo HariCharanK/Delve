@@ -160,24 +160,66 @@ class SearchStore:
         query_embedding: list[float],
         top_k: int = 10,
     ) -> list[SearchResult]:
-        """Hybrid search: FTS5 trigram + vec0, merged via RRF."""
-        k = 60  # RRF constant
+        """Hybrid search: exact LIKE + FTS5 trigram + vec0, merged via RRF.
 
-        # --- FTS5 trigram search ---
-        fts_results = self.db.execute(
+        Weights are tuned for short-substring note search:
+          exact LIKE match  — 1.0  (highest: exact substring in line)
+          FTS5 trigram      — 0.4  (medium: handles case/accent variants)
+          vector semantic   — 0.2  (lowest: helps when query has no literal hit)
+        """
+        k = 60  # RRF constant
+        candidate_k = top_k * 5
+
+        scores: dict[int, float] = {}
+        meta: dict[int, dict] = {}
+
+        def _record(row, rank_pos: int, weight: float) -> None:
+            rid = row["rowid"]
+            scores[rid] = scores.get(rid, 0) + weight * (1.0 / (k + rank_pos + 1))
+            meta[rid] = {
+                "file_path": row["file_path"],
+                "chunk_index": row["chunk_index"],
+                "content": row["content"],
+            }
+
+        # --- 1. Exact LIKE substring match (weight 1.0) ---
+        # Escape LIKE special chars; SQLite LIKE is case-insensitive for ASCII.
+        safe = query_text.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        like_results = self.db.execute(
             """
-            SELECT c.rowid, c.file_path, c.chunk_index, c.content,
-                   rank AS fts_rank
-            FROM chunks_fts
-            JOIN chunks c ON c.rowid = chunks_fts.rowid
-            WHERE chunks_fts MATCH ?
-            ORDER BY rank
+            SELECT rowid, file_path, chunk_index, content
+            FROM chunks
+            WHERE content LIKE ? ESCAPE '\\'
+            ORDER BY length(content) ASC
             LIMIT ?
             """,
-            ('"' + query_text.replace('"', '""') + '"', top_k * 5),
+            (f"%{safe}%", candidate_k),
         ).fetchall()
+        for rank_pos, row in enumerate(like_results):
+            _record(row, rank_pos, 1.0)
 
-        # --- Vector search ---
+        # --- 2. FTS5 trigram phrase search (weight 0.4) ---
+        # Requires >= 3 chars to form a trigram; skip for very short queries.
+        if len(query_text.strip()) >= 3:
+            try:
+                fts_results = self.db.execute(
+                    """
+                    SELECT c.rowid, c.file_path, c.chunk_index, c.content,
+                           rank AS fts_rank
+                    FROM chunks_fts
+                    JOIN chunks c ON c.rowid = chunks_fts.rowid
+                    WHERE chunks_fts MATCH ?
+                    ORDER BY rank
+                    LIMIT ?
+                    """,
+                    ('"' + query_text.replace('"', '""') + '"', candidate_k),
+                ).fetchall()
+                for rank_pos, row in enumerate(fts_results):
+                    _record(row, rank_pos, 0.4)
+            except Exception:
+                pass  # malformed query or empty index — skip FTS leg
+
+        # --- 3. Vector semantic search (weight 0.2) ---
         vec_results = self.db.execute(
             """
             SELECT v.rowid, c.file_path, c.chunk_index, c.content,
@@ -188,33 +230,12 @@ class SearchStore:
                 AND k = ?
             ORDER BY v.distance
             """,
-            (json.dumps(query_embedding), top_k * 5),
+            (json.dumps(query_embedding), candidate_k),
         ).fetchall()
-
-        # --- RRF merge ---
-        # Build per-rowid scores
-        scores: dict[int, float] = {}
-        meta: dict[int, dict] = {}
-
-        for rank_pos, row in enumerate(fts_results):
-            rid = row["rowid"]
-            scores[rid] = scores.get(rid, 0) + 0.3 * (1.0 / (k + rank_pos + 1))
-            meta[rid] = {
-                "file_path": row["file_path"],
-                "chunk_index": row["chunk_index"],
-                "content": row["content"],
-            }
-
         for rank_pos, row in enumerate(vec_results):
-            rid = row["rowid"]
-            scores[rid] = scores.get(rid, 0) + 0.7 * (1.0 / (k + rank_pos + 1))
-            meta[rid] = {
-                "file_path": row["file_path"],
-                "chunk_index": row["chunk_index"],
-                "content": row["content"],
-            }
+            _record(row, rank_pos, 0.2)
 
-        # Sort by RRF score descending
+        # Sort by combined RRF score descending
         ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:top_k]
 
         return [
