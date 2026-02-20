@@ -41,9 +41,9 @@ def create_app(store: SearchStore, notes_dir: str) -> Flask:
 
         response = []
         for r in results:
-            # With one-line-per-chunk, we can compute the line number
-            # directly: chunk_index maps to the Nth non-empty line.
-            line_start = _find_line_number(r.file_path, r.content)
+            # chunk_index is the 0-based index among non-empty lines;
+            # use it to find the exact file line number (handles duplicates).
+            line_start = _find_line_number(r.file_path, r.chunk_index)
             # Extension needs absolute paths for vscode.Uri.file()
             abs_path = os.path.join(_notes_dir, r.file_path)
             response.append({
@@ -81,16 +81,24 @@ def create_app(store: SearchStore, notes_dir: str) -> Flask:
     return app
 
 
-def _find_line_number(file_path: str, chunk_content: str) -> int:
-    """Find the 1-based line number where a chunk (single line) appears."""
+def _find_line_number(file_path: str, chunk_index: int) -> int:
+    """Return the 1-based file line number for the chunk_index-th non-empty line.
+
+    chunk_index is 0-based and counts only non-empty lines (matching how
+    chunker.py builds chunks). This is more reliable than searching by
+    content, which breaks when duplicate lines exist.
+    """
     if not _notes_dir:
         return 1
     abs_path = os.path.join(_notes_dir, file_path)
     try:
         with open(abs_path, "r", encoding="utf-8", errors="replace") as f:
-            for i, line in enumerate(f, 1):
-                if line.strip() == chunk_content.strip():
-                    return i
+            nonempty = 0
+            for file_line, text in enumerate(f, 1):
+                if text.strip():
+                    if nonempty == chunk_index:
+                        return file_line
+                    nonempty += 1
         return 1
     except OSError:
         return 1
